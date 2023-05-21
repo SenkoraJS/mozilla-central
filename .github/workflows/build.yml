@@ -61,7 +61,7 @@ jobs:
           export MOZCONFIG=mozconfigs/optimized
 
       - name: Bootstrap
-        run: yes 5 | ./mach bootstrap
+        run: yes 5 | ./mach bootstrap --application-choice js
 
       - name: Build
-        run: MOZCONFIG=mozconfigs/optimized ./mach build --application-choice js
+        run: MOZCONFIG=mozconfigs/optimized ./mach build
