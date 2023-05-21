@@ -10,7 +10,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Ls
-        run: ls -l -h
+        run: |
+          pushd .
+          ls -l -h
 
       - name: Update apt database
         run: sudo apt-get update
@@ -31,7 +33,7 @@ jobs:
           export MOZCONFIG=mozconfigs/debug
 
       - name: Bootstrap
-        run: MOZCONFIG=mozconfigs/debug ./mach bootstrap
+        run: echo 5 | MOZCONFIG=mozconfigs/debug ./mach bootstrap
 
       - name: Build
         run: MOZCONFIG=mozconfigs/debug ./mach build
@@ -59,7 +61,7 @@ jobs:
           export MOZCONFIG=mozconfigs/optimized
 
       - name: Bootstrap
-        run: MOZCONFIG=mozconfigs/optimized ./mach bootstrap
+        run: echo 5 | MOZCONFIG=mozconfigs/optimized ./mach bootstrap
 
       - name: Build
         run: MOZCONFIG=mozconfigs/optimized ./mach build
