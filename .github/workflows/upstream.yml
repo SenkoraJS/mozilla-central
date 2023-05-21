@@ -33,7 +33,7 @@ jobs:
 
       - name: Add files
         run: |
-          git add -A
+          git add -f .
           git commit -am "Update upstream on $(date)"
 
       - name: Push
