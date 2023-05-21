@@ -9,6 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Ls
+        run: ls -l -h
+
       - name: Update apt database
         run: sudo apt-get update
 
