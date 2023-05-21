@@ -37,7 +37,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: debug
-          path: obj-debug-*
+          path: obj-debug-*/dist
   build-optimized:
     runs-on: ubuntu-latest
     steps:
@@ -71,4 +71,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: optimized
-          path: obj-opt-*
+          path: obj-opt-*/dist
