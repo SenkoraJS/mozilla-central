@@ -9,11 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Ls
-        run: |
-          pushd .
-          ls -l -h
-
       - name: Update apt database
         run: sudo apt-get update
 
@@ -37,6 +32,12 @@ jobs:
 
       - name: Build
         run: MOZCONFIG=mozconfigs/debug ./mach build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: debug
+          path: obj-debug-*
   build-optimized:
     runs-on: ubuntu-latest
     steps:
@@ -65,3 +66,9 @@ jobs:
 
       - name: Build
         run: MOZCONFIG=mozconfigs/optimized ./mach build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: optimized
+          path: obj-opt-*
