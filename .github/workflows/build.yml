@@ -21,6 +21,9 @@ jobs:
       - name: Install pkg-config
         run: sudo apt-get install pkg-config
 
+      - name: Install readline
+        run: sudo apt-get install libreadline-dev
+
       - name: Configure mozconfig
         run: |
           echo -e "ac_add_options --enable-project=js\nac_add_options --enable-application=js\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-@CONFIG_GUESS@\n\nac_add_options --enable-release\nac_add_options --enable-hardening\nac_add_options --enable-optimize\nac_add_options --enable-rust-simd\nac_add_options --enable-linker=lld\nac_add_options --disable-bootstrap\nac_add_options --disable-debug\nac_add_options --disable-jemalloc\nac_add_options --disable-strip\nac_add_options --disable-unified-build\n\n# System libraries\nac_add_options --with-system-zlib\nac_add_options --without-system-icu\n\n# Features\nac_add_options --enable-readline\nac_add_options --enable-shared-js\nac_add_options --enable-tests\nac_add_options --with-intl-api\n\nac_add_options --enable-lto=cross\nac_add_options --enable-profile-use=cross" > .mozconfig
