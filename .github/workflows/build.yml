@@ -32,8 +32,8 @@ jobs:
       - name: Bootstrap
         run: ./mach bootstrap --application-choice js
 
-      - name: Clobber
-        run: ./mach clobber
+      #- name: Clobber
+      #  run: ./mach clobber
 
       - name: Build
         run: MOZCONFIG=.mozconfig ./mach build
@@ -47,7 +47,7 @@ jobs:
           mkdir lib
           cp ../obj-*/dist/bin/js bin/
           cp ../obj-*/js/src/build/js-config bin/
-          cp -r ../obj-*/dist/include/** include/
+          cp -r ../obj-*/dist/include include/
           cp ../obj-*/dist/bin/lib*.so lib/
           mkdir lib/pkgconfig
           cp ../obj-*/js/src/build/js.pc lib/pkgconfig/
