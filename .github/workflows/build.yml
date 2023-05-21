@@ -26,7 +26,7 @@ jobs:
 
       - name: Configure mozconfig
         run: |
-          echo -e "ac_add_options --enable-project=js\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-@CONFIG_GUESS@\nac_add_options --prefix=/usr\nac_add_options --enable-release\nac_add_options --enable-hardening\nac_add_options --enable-optimize\nac_add_options --enable-rust-simd\nac_add_options --enable-linker=lld\nac_add_options --disable-bootstrap\nac_add_options --disable-debug\nac_add_options --disable-jemalloc\nac_add_options --disable-strip\nac_add_options --disable-unified-build\n\n# System libraries\nac_add_options --with-system-zlib\nac_add_options --without-system-icu\n\n# Features\nac_add_options --enable-shared-js" > .mozconfig
+          echo -e "# Build only the JS shell\nac_add_options --enable-project=js\nac_add_options --enable-optimize\nac_add_options --prefix=/usr\nac_add_options --disable-debug\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-opt-@CONFIG_GUESS@" > .mozconfig
           export MOZCONFIG=.mozconfig
 
       - name: Bootstrap
