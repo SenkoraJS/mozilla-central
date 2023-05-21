@@ -23,7 +23,7 @@ jobs:
 
       - name: Move source to root
         run: |
-          mv mozilla-central/* .
+          mv -f mozilla-central/* .
           rm -rf mozilla-central
 
       - name: Configure git
