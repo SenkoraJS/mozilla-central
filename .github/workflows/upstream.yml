@@ -19,7 +19,12 @@ jobs:
         run: sudo apt-get -y install mercurial
 
       - name: Clone upstream
-        run: hg clone https://hg.mozilla.org/mozilla-central
+        run: hg clone https://hg.mozilla.org/mozilla-central mozilla-central
+
+      - name: Move source to root
+        run: |
+          mv mozilla-central/* .
+          rm -rf mozilla-central
 
       - name: Configure git
         run: |
@@ -28,10 +33,8 @@ jobs:
 
       - name: Add files
         run: |
-          cp -r mozilla-central/* .
-          rm -rf mozilla-central
-          git add -A
-          git commit -m "Update upstream"
+          git add .
+          git commit -am "Update upstream on $(date)"
 
       - name: Push
         uses: ad-m/github-push-action@master
