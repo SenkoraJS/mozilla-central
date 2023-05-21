@@ -21,8 +21,8 @@ jobs:
       - name: Install pkg-config
         run: sudo apt-get install pkg-config
 
-      - name: Install readline
-        run: sudo apt-get install libreadline-dev
+      - name: Install libtool
+        run: sudo apt-get install libtool
 
       - name: Configure mozconfig
         run: |
