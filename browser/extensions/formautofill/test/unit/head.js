@@ -1,0 +1,521 @@
+/**
+ * Provides infrastructure for automated formautofill components tests.
+ */
+
+"use strict";
+
+var { XPCOMUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/XPCOMUtils.sys.mjs"
+);
+var { ObjectUtils } = ChromeUtils.import(
+  "resource://gre/modules/ObjectUtils.jsm"
+);
+var { FormLikeFactory } = ChromeUtils.importESModule(
+  "resource://gre/modules/FormLikeFactory.sys.mjs"
+);
+var { FormAutofillHandler } = ChromeUtils.importESModule(
+  "resource://gre/modules/shared/FormAutofillHandler.sys.mjs"
+);
+var { AddonTestUtils, MockAsyncShutdown } = ChromeUtils.import(
+  "resource://testing-common/AddonTestUtils.jsm"
+);
+var { ExtensionTestUtils } = ChromeUtils.import(
+  "resource://testing-common/ExtensionXPCShellUtils.jsm"
+);
+var { FileTestUtils } = ChromeUtils.importESModule(
+  "resource://testing-common/FileTestUtils.sys.mjs"
+);
+var { MockDocument } = ChromeUtils.importESModule(
+  "resource://testing-common/MockDocument.sys.mjs"
+);
+var { sinon } = ChromeUtils.importESModule(
+  "resource://testing-common/Sinon.sys.mjs"
+);
+var { TestUtils } = ChromeUtils.importESModule(
+  "resource://testing-common/TestUtils.sys.mjs"
+);
+
+ChromeUtils.defineModuleGetter(
+  this,
+  "AddonManager",
+  "resource://gre/modules/AddonManager.jsm"
+);
+ChromeUtils.defineModuleGetter(
+  this,
+  "AddonManagerPrivate",
+  "resource://gre/modules/AddonManager.jsm"
+);
+ChromeUtils.defineESModuleGetters(this, {
+  FileUtils: "resource://gre/modules/FileUtils.sys.mjs",
+});
+
+ChromeUtils.defineModuleGetter(
+  this,
+  "ExtensionParent",
+  "resource://gre/modules/ExtensionParent.jsm"
+);
+
+{
+  // We're going to register a mock file source
+  // with region names based on en-US. This is
+  // necessary for tests that expect to match
+  // on region code display names.
+  const fs = [
+    {
+      path: "toolkit/intl/regionNames.ftl",
+      source: `
+region-name-us = United States
+region-name-nz = New Zealand
+region-name-au = Australia
+region-name-ca = Canada
+region-name-tw = Taiwan
+    `,
+    },
+  ];
+
+  let locales = Services.locale.packagedLocales;
+  const mockSource = L10nFileSource.createMock(
+    "mock",
+    "app",
+    locales,
+    "resource://mock_path",
+    fs
+  );
+  L10nRegistry.getInstance().registerSources([mockSource]);
+}
+
+do_get_profile();
+
+const EXTENSION_ID = "formautofill@mozilla.org";
+
+AddonTestUtils.init(this);
+AddonTestUtils.overrideCertDB();
+
+function SetPref(name, value) {
+  switch (typeof value) {
+    case "string":
+      Services.prefs.setCharPref(name, value);
+      break;
+    case "number":
+      Services.prefs.setIntPref(name, value);
+      break;
+    case "boolean":
+      Services.prefs.setBoolPref(name, value);
+      break;
+    default:
+      throw new Error("Unknown type");
+  }
+}
+
+// Return the current date rounded in the manner that sync does.
+function getDateForSync() {
+  return Math.round(Date.now() / 10) / 100;
+}
+
+async function loadExtension() {
+  AddonTestUtils.createAppInfo(
+    "xpcshell@tests.mozilla.org",
+    "XPCShell",
+    "1",
+    "1.9.2"
+  );
+  await AddonTestUtils.promiseStartupManager();
+
+  let extensionPath = Services.dirsvc.get("GreD", Ci.nsIFile);
+  extensionPath.append("browser");
+  extensionPath.append("features");
+  extensionPath.append(EXTENSION_ID);
+
+  if (!extensionPath.exists()) {
+    extensionPath.leafName = `${EXTENSION_ID}.xpi`;
+  }
+
+  let startupPromise = new Promise(resolve => {
+    const { apiManager } = ExtensionParent;
+    function onReady(event, extension) {
+      if (extension.id == EXTENSION_ID) {
+        apiManager.off("ready", onReady);
+        resolve();
+      }
+    }
+
+    apiManager.on("ready", onReady);
+  });
+
+  await AddonManager.installTemporaryAddon(extensionPath);
+  await startupPromise;
+}
+
+// Returns a reference to a temporary file that is guaranteed not to exist and
+// is cleaned up later. See FileTestUtils.getTempFile for details.
+function getTempFile(leafName) {
+  return FileTestUtils.getTempFile(leafName);
+}
+
+async function initProfileStorage(
+  fileName,
+  records,
+  collectionName = "addresses"
+) {
+  let { FormAutofillStorage } = ChromeUtils.importESModule(
+    "resource://autofill/FormAutofillStorage.sys.mjs"
+  );
+  let path = getTempFile(fileName).path;
+  let profileStorage = new FormAutofillStorage(path);
+  await profileStorage.initialize();
+
+  // AddonTestUtils inserts its own directory provider that manages TmpD.
+  // It removes that directory at shutdown, which races with shutdown
+  // handing in JSONFile/DeferredTask (which is used by FormAutofillStorage).
+  // Avoid the race by explicitly finalizing any formautofill JSONFile
+  // instances created manually by individual tests when the test finishes.
+  registerCleanupFunction(function finalizeAutofillStorage() {
+    return profileStorage._finalize();
+  });
+
+  if (!records || !Array.isArray(records)) {
+    return profileStorage;
+  }
+
+  let onChanged = TestUtils.topicObserved(
+    "formautofill-storage-changed",
+    (subject, data) =>
+      data == "add" && subject.wrappedJSObject.collectionName == collectionName
+  );
+  for (let record of records) {
+    Assert.ok(await profileStorage[collectionName].add(record));
+    await onChanged;
+  }
+  await profileStorage._saveImmediately();
+  return profileStorage;
+}
+
+function verifySectionAutofillResult(sections, expectedSectionsInfo) {
+  sections.forEach((section, index) => {
+    const expectedSection = expectedSectionsInfo[index];
+
+    const fieldDetails = section.fieldDetails;
+    const expectedFieldDetails = expectedSection.fields;
+
+    info(`verify autofill section[${index}]`);
+
+    fieldDetails.forEach((field, fieldIndex) => {
+      const expeceted = expectedFieldDetails[fieldIndex];
+
+      Assert.equal(
+        expeceted.autofill,
+        field.element.value,
+        `Autofilled value for element(id=${field.element.id}, field name=${field.fieldName}) should be equal`
+      );
+    });
+  });
+}
+
+function verifySectionFieldDetails(sections, expectedSectionsInfo) {
+  sections.forEach((section, index) => {
+    const expectedSection = expectedSectionsInfo[index];
+
+    const fieldDetails = section.fieldDetails;
+    const expectedFieldDetails = expectedSection.fields;
+
+    info(`section[${index}] ${expectedSection.description ?? ""}:`);
+    info(`FieldName Prediction Results: ${fieldDetails.map(i => i.fieldName)}`);
+    info(
+      `FieldName Expected Results:   ${expectedFieldDetails.map(
+        detail => detail.fieldName
+      )}`
+    );
+    Assert.equal(
+      fieldDetails.length,
+      expectedFieldDetails.length,
+      `Expected field count.`
+    );
+
+    fieldDetails.forEach((field, fieldIndex) => {
+      const expectedFieldDetail = expectedFieldDetails[fieldIndex];
+
+      const expected = {
+        ...{
+          reason: "autocomplete",
+          section: "",
+          contactType: "",
+          addressType: "",
+        },
+        ...expectedSection.default,
+        ...expectedFieldDetail,
+      };
+
+      const keys = new Set([...Object.keys(field), ...Object.keys(expected)]);
+      ["autofill", "elementWeakRef", "confidence", "part"].forEach(k =>
+        keys.delete(k)
+      );
+
+      for (const key of keys) {
+        const expectedValue = expected[key];
+        const actualValue = field[key];
+        Assert.equal(
+          expectedValue,
+          actualValue,
+          `${key} should be equal, expect ${expectedValue}, got ${actualValue}`
+        );
+      }
+    });
+
+    Assert.equal(
+      section.isValidSection(),
+      !expectedSection.invalid,
+      `Should be an ${expectedSection.invalid ? "invalid" : "valid"} section`
+    );
+  });
+}
+
+var FormAutofillHeuristics, LabelUtils;
+var AddressDataLoader, FormAutofillUtils;
+
+function autofillFieldSelector(doc) {
+  return doc.querySelectorAll("input, select");
+}
+
+/**
+ * Runs heuristics test for form autofill on given patterns.
+ *
+ * @param {Array<object>} patterns - An array of test patterns to run the heuristics test on.
+ * @param {string} pattern.description - Description of this heuristic test
+ * @param {string} pattern.fixurePath - The path of the test document
+ * @param {string} pattern.fixureData - Test document by string. Use either fixurePath or fixtureData.
+ * @param {object} pattern.profile - The profile to autofill. This is required only when running autofill test
+ * @param {Array}  pattern.expectedResult - The expected result of this heuristic test. See below for detailed explanation
+ *
+ * @param {string} [fixturePathPrefix=""] - The prefix to the path of fixture files.
+ * @param {object} [options={ testAutofill: false }] - An options object containing additional configuration for running the test.
+ * @param {boolean} [options.testAutofill=false] - A boolean indicating whether to run the test for autofill or not.
+ * @returns {Promise} A promise that resolves when all the tests are completed.
+ *
+ * The `patterns.expectedResult` array contains test data for different address or credit card sections.
+ * Each section in the array is represented by an object and can include the following properties:
+ * - description (optional): A string describing the section, primarily used for debugging purposes.
+ * - default (optional): An object that sets the default values for all the fields within this section.
+ *            The default object contains the same keys as the individual field objects.
+ * - fields: An array of field details (class FieldDetails) within the section.
+ *
+ * Each field object can have the following keys:
+ * - fieldName: The name of the field (e.g., "street-name", "cc-name" or "cc-number").
+ * - reason: The reason for the field value (e.g., "autocomplete", "regex-heuristic" or "fathom").
+ * - section: The section to which the field belongs (e.g., "billing", "shipping").
+ * - part: The part of the field.
+ * - contactType: The contact type of the field.
+ * - addressType: The address type of the field.
+ * - autofill: Set to true when running autofill test
+ *
+ * For more information on the field object properties, refer to the FieldDetails class.
+ *
+ * Example test data:
+ * runHeuristicsTest(
+ * [{
+ *   description: "first test pattern",
+ *   fixuturePath: "autocomplete_off.html",
+ *   profile: {organization: "Mozilla", country: "US", tel: "123"},
+ *   expectedResult: [
+ *   {
+ *     description: "First section"
+ *     fields: [
+ *       { fieldName: "organization", reason: "autocomplete", autofill: "Mozilla" },
+ *       { fieldName: "country", reason: "regex-heuristic", autofill: "US" },
+ *       { fieldName: "tel", reason: "regex-heuristic", autofill: "123" },
+ *     ]
+ *   },
+ *   {
+ *     default: {
+ *       reason: "regex-heuristic",
+ *       section: "billing",
+ *     },
+ *     fields: [
+ *       { fieldName: "cc-number", reason: "fathom" },
+ *       { fieldName: "cc-nane" },
+ *       { fieldName: "cc-exp" },
+ *     ],
+ *    }],
+ *  },
+ *  {
+ *    // second test pattern //
+ *  }
+ * ],
+ * "/fixturepath",
+ * {testAutofill: true}  // test options
+ * )
+ */
+
+async function runHeuristicsTest(
+  patterns,
+  fixturePathPrefix = "",
+  options = { testAutofill: false }
+) {
+  add_setup(async () => {
+    ({ FormAutofillHeuristics } = ChromeUtils.importESModule(
+      "resource://gre/modules/shared/FormAutofillHeuristics.sys.mjs"
+    ));
+    ({ AddressDataLoader, FormAutofillUtils } = ChromeUtils.importESModule(
+      "resource://gre/modules/shared/FormAutofillUtils.sys.mjs"
+    ));
+    ({ LabelUtils } = ChromeUtils.importESModule(
+      "resource://gre/modules/shared/LabelUtils.sys.mjs"
+    ));
+  });
+
+  patterns.forEach(testPattern => {
+    add_task(async function () {
+      info(`Starting test fixture: ${testPattern.fixturePath ?? ""}`);
+      if (testPattern.description) {
+        info(`test "${testPattern.description}"`);
+      }
+
+      if (testPattern.prefs) {
+        testPattern.prefs.forEach(pref => SetPref(pref[0], pref[1]));
+      }
+
+      const url = "http://localhost:8080/test/";
+      const doc = testPattern.fixtureData
+        ? MockDocument.createTestDocument(url, testPattern.fixtureData)
+        : MockDocument.createTestDocumentFromFile(
+            url,
+            do_get_file(fixturePathPrefix + testPattern.fixturePath)
+          );
+
+      let forms = [...doc.querySelectorAll("input, select")].reduce(
+        (acc, field) => {
+          const formLike = FormLikeFactory.createFromField(field);
+          if (!acc.some(form => form.rootElement === formLike.rootElement)) {
+            acc.push(formLike);
+          }
+          return acc;
+        },
+        []
+      );
+
+      const sections = forms.flatMap(form => {
+        const handler = new FormAutofillHandler(form);
+        handler.collectFormFields(false /* ignoreInvalid */);
+        return handler.sections;
+      });
+
+      Assert.equal(
+        sections.length,
+        testPattern.expectedResult.length,
+        "Expected section count."
+      );
+
+      verifySectionFieldDetails(sections, testPattern.expectedResult);
+
+      if (options.testAutofill) {
+        for (const section of sections) {
+          section.focusedInput = section.fieldDetails[0].element;
+          await section.autofillFields(testPattern.profile);
+        }
+        verifySectionAutofillResult(sections, testPattern.expectedResult);
+      }
+
+      if (testPattern.prefs) {
+        testPattern.prefs.forEach(pref =>
+          Services.prefs.clearUserPref(pref[0])
+        );
+      }
+    });
+  });
+}
+
+async function runAutofillHeuristicsTest(patterns, fixturePathPrefix = "") {
+  runHeuristicsTest(patterns, fixturePathPrefix, { testAutofill: true });
+}
+
+/**
+ * Returns the Sync change counter for a profile storage record. Synced records
+ * store additional metadata for tracking changes and resolving merge conflicts.
+ * Deleting a synced record replaces the record with a tombstone.
+ *
+ * @param   {AutofillRecords} records
+ *          The `AutofillRecords` instance to query.
+ * @param   {string} guid
+ *          The GUID of the record or tombstone.
+ * @returns {number}
+ *          The change counter, or -1 if the record doesn't exist or hasn't
+ *          been synced yet.
+ */
+function getSyncChangeCounter(records, guid) {
+  let record = records._findByGUID(guid, { includeDeleted: true });
+  if (!record) {
+    return -1;
+  }
+  let sync = records._getSyncMetaData(record);
+  if (!sync) {
+    return -1;
+  }
+  return sync.changeCounter;
+}
+
+/**
+ * Performs a partial deep equality check to determine if an object contains
+ * the given fields.
+ *
+ * @param   {object} object
+ *          The object to check. Unlike `ObjectUtils.deepEqual`, properties in
+ *          `object` that are not in `fields` will be ignored.
+ * @param   {object} fields
+ *          The fields to match.
+ * @returns {boolean}
+ *          Does `object` contain `fields` with matching values?
+ */
+function objectMatches(object, fields) {
+  let actual = {};
+  for (let key in fields) {
+    if (!object.hasOwnProperty(key)) {
+      return false;
+    }
+    actual[key] = object[key];
+  }
+  return ObjectUtils.deepEqual(actual, fields);
+}
+
+add_setup(async function head_initialize() {
+  Services.prefs.setBoolPref("extensions.experiments.enabled", true);
+  Services.prefs.setBoolPref("dom.forms.autocomplete.formautofill", true);
+
+  Services.prefs.setCharPref(
+    "extensions.formautofill.addresses.supported",
+    "on"
+  );
+  Services.prefs.setCharPref(
+    "extensions.formautofill.creditCards.supported",
+    "on"
+  );
+  Services.prefs.setBoolPref("extensions.formautofill.addresses.enabled", true);
+  Services.prefs.setBoolPref(
+    "extensions.formautofill.creditCards.enabled",
+    true
+  );
+
+  // Clean up after every test.
+  registerCleanupFunction(function head_cleanup() {
+    Services.prefs.clearUserPref("extensions.experiments.enabled");
+    Services.prefs.clearUserPref(
+      "extensions.formautofill.creditCards.supported"
+    );
+    Services.prefs.clearUserPref("extensions.formautofill.addresses.supported");
+    Services.prefs.clearUserPref("extensions.formautofill.creditCards.enabled");
+    Services.prefs.clearUserPref("dom.forms.autocomplete.formautofill");
+    Services.prefs.clearUserPref("extensions.formautofill.addresses.enabled");
+    Services.prefs.clearUserPref("extensions.formautofill.creditCards.enabled");
+  });
+
+  await loadExtension();
+});
+
+let OSKeyStoreTestUtils;
+add_setup(async function os_key_store_setup() {
+  ({ OSKeyStoreTestUtils } = ChromeUtils.importESModule(
+    "resource://testing-common/OSKeyStoreTestUtils.sys.mjs"
+  ));
+  OSKeyStoreTestUtils.setup();
+  registerCleanupFunction(async function cleanup() {
+    await OSKeyStoreTestUtils.cleanup();
+  });
+});
