@@ -1,0 +1,62 @@
+name: Builld
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Update apt database
+        run: sudo apt-get update
+
+      - name: Install mercurial
+        run: sudo apt-get -y install mercurial
+
+      - name: Install python
+        run: sudo apt-get install curl python3 python3-pip
+
+      - name: Install pkg-config
+        run: sudo apt-get install pkg-config
+
+      - name: Configure mozconfig
+        run: |
+          mkdir mozconfigs
+          echo -e "# Build only the JS shell\nac_add_options --enable-project=js\nac_add_options --enable-debug\nac_add_options --enable-optimize\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-debug-@CONFIG_GUESS@" > mozconfigs/debug
+          export MOZCONFIG=$HOME/mozconfigs/debug
+
+      - name: Bootstrap
+        run: MOZCONFIG=$HOME/mozconfigs/debug ./mach bootstrap
+
+      - name: Build
+        run: MOZCONFIG=$HOME/mozconfigs/debug ./mach build
+  build-optimized:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Update apt database
+        run: sudo apt-get update
+
+      - name: Install mercurial
+        run: sudo apt-get -y install mercurial
+
+      - name: Install python
+        run: sudo apt-get install curl python3 python3-pip
+
+      - name: Install pkg-config
+        run: sudo apt-get install pkg-config
+
+      - name: Configure mozconfig
+        run: |
+          mkdir mozconfigs
+          echo -e "# Build only the JS shell\nac_add_options --enable-project=js\nac_add_options --enable-optimize\nac_add_options --disable-debug\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-opt-@CONFIG_GUESS@" > mozconfigs/optimized
+          export MOZCONFIG=$HOME/mozconfigs/optimized
+
+      - name: Bootstrap
+        run: MOZCONFIG=$HOME/mozconfigs/optimized ./mach bootstrap
+
+      - name: Build
+        run: MOZCONFIG=$HOME/mozconfigs/optimized ./mach build
