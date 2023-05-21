@@ -25,13 +25,13 @@ jobs:
         run: |
           mkdir mozconfigs
           echo -e "# Build only the JS shell\nac_add_options --enable-project=js\nac_add_options --enable-debug\nac_add_options --enable-optimize\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-debug-@CONFIG_GUESS@" > mozconfigs/debug
-          export MOZCONFIG=$HOME/mozconfigs/debug
+          export MOZCONFIG=mozconfigs/debug
 
       - name: Bootstrap
-        run: MOZCONFIG=$HOME/mozconfigs/debug ./mach bootstrap
+        run: MOZCONFIG=mozconfigs/debug ./mach bootstrap
 
       - name: Build
-        run: MOZCONFIG=$HOME/mozconfigs/debug ./mach build
+        run: MOZCONFIG=mozconfigs/debug ./mach build
   build-optimized:
     runs-on: ubuntu-latest
     steps:
@@ -53,10 +53,10 @@ jobs:
         run: |
           mkdir mozconfigs
           echo -e "# Build only the JS shell\nac_add_options --enable-project=js\nac_add_options --enable-optimize\nac_add_options --disable-debug\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-opt-@CONFIG_GUESS@" > mozconfigs/optimized
-          export MOZCONFIG=$HOME/mozconfigs/optimized
+          export MOZCONFIG=mozconfigs/optimized
 
       - name: Bootstrap
-        run: MOZCONFIG=$HOME/mozconfigs/optimized ./mach bootstrap
+        run: MOZCONFIG=mozconfigs/optimized ./mach bootstrap
 
       - name: Build
-        run: MOZCONFIG=$HOME/mozconfigs/optimized ./mach build
+        run: MOZCONFIG=mozconfigs/optimized ./mach build
