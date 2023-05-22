@@ -15,16 +15,20 @@ jobs:
       - name: Update apt database
         run: sudo apt-get update
 
-      - name: Install mercurial
-        run: sudo apt-get -y install mercurial
+      - name: Initialize environment
+        run: |
+          rm -rf $PWD/*
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo -E apt-get -qq update
+          sudo apt-get -y install mercurial
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
 
       - name: Clone upstream
         run: hg clone https://hg.mozilla.org/mozilla-central mozilla-central
 
       - name: Move source to root
-        run: |
-          mv -f mozilla-central/* .
-          rm -rf mozilla-central
+        run: mv mozilla-central/* $PWD/ && rm -rf mozilla-central
 
       - name: Configure git
         run: |
