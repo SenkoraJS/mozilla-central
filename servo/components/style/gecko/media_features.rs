@@ -331,7 +331,6 @@ fn eval_inverted_colors(
 enum OverflowBlock {
     None,
     Scroll,
-    OptionalPaged,
     Paged,
 }
 
@@ -351,7 +350,7 @@ fn eval_overflow_block(context: &Context, query_value: Option<OverflowBlock>) ->
     };
 
     match query_value {
-        OverflowBlock::None | OverflowBlock::OptionalPaged => false,
+        OverflowBlock::None => false,
         OverflowBlock::Scroll => scrolling,
         OverflowBlock::Paged => !scrolling,
     }
@@ -703,25 +702,25 @@ pub static MEDIA_FEATURES: [QueryFeatureDescription; 67] = [
         atom!("width"),
         AllowsRanges::Yes,
         Evaluator::Length(eval_width),
-        FeatureFlags::empty(),
+        FeatureFlags::VIEWPORT_DEPENDENT,
     ),
     feature!(
         atom!("height"),
         AllowsRanges::Yes,
         Evaluator::Length(eval_height),
-        FeatureFlags::empty(),
+        FeatureFlags::VIEWPORT_DEPENDENT,
     ),
     feature!(
         atom!("aspect-ratio"),
         AllowsRanges::Yes,
         Evaluator::NumberRatio(eval_aspect_ratio),
-        FeatureFlags::empty(),
+        FeatureFlags::VIEWPORT_DEPENDENT,
     ),
     feature!(
         atom!("orientation"),
         AllowsRanges::No,
         keyword_evaluator!(eval_orientation, Orientation),
-        FeatureFlags::empty(),
+        FeatureFlags::VIEWPORT_DEPENDENT,
     ),
     feature!(
         atom!("device-width"),

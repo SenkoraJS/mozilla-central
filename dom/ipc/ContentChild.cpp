@@ -601,13 +601,7 @@ ContentChild* ContentChild::sSingleton;
 StaticAutoPtr<ContentChild::ShutdownCanary> ContentChild::sShutdownCanary;
 
 ContentChild::ContentChild()
-    : mID(uint64_t(-1))
-#if defined(XP_WIN) && defined(ACCESSIBILITY)
-      ,
-      mMainChromeTid(0),
-      mMsaaID(0)
-#endif
-      ,
+    : mID(uint64_t(-1)),
       mIsForBrowser(false),
       mIsAlive(true),
       mShuttingDown(false) {
@@ -771,9 +765,6 @@ void ContentChild::Init(mozilla::ipc::UntypedEndpoint&& aEndpoint,
   // If communications with the parent have broken down, take the process
   // down so it's not hanging around.
   GetIPCChannel()->SetAbortOnError(true);
-#if defined(XP_WIN) && defined(ACCESSIBILITY)
-  GetIPCChannel()->SetChannelFlags(MessageChannel::REQUIRE_A11Y_REENTRY);
-#endif
 
   // This must be checked before any IPDL message, which may hit sentinel
   // errors due to parent and content processes having different
@@ -2552,17 +2543,8 @@ mozilla::ipc::IPCResult ContentChild::RecvFlushMemory(const nsString& reason) {
   return IPC_OK();
 }
 
-mozilla::ipc::IPCResult ContentChild::RecvActivateA11y(
-    const uint32_t& aMainChromeTid, const uint32_t& aMsaaID) {
+mozilla::ipc::IPCResult ContentChild::RecvActivateA11y() {
 #ifdef ACCESSIBILITY
-#  ifdef XP_WIN
-  MOZ_ASSERT(aMainChromeTid != 0);
-  mMainChromeTid = aMainChromeTid;
-
-  MOZ_ASSERT(a11y::IsCacheActive() ? !aMsaaID : aMsaaID);
-  mMsaaID = aMsaaID;
-#  endif  // XP_WIN
-
   // Start accessibility in content process if it's running in chrome
   // process.
   GetOrCreateAccService(nsAccessibilityService::eMainProcess);
@@ -3366,12 +3348,6 @@ mozilla::ipc::IPCResult ContentChild::RecvBlobURLUnregistration(
       /* aBroadcastToOtherProcesses = */ false);
   return IPC_OK();
 }
-
-#if defined(XP_WIN) && defined(ACCESSIBILITY)
-bool ContentChild::SendGetA11yContentId() {
-  return PContentChild::SendGetA11yContentId(&mMsaaID);
-}
-#endif  // defined(XP_WIN) && defined(ACCESSIBILITY)
 
 void ContentChild::CreateGetFilesRequest(const nsAString& aDirectoryPath,
                                          bool aRecursiveFlag, nsID& aUUID,

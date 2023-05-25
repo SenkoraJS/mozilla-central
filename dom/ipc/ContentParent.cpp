@@ -25,16 +25,12 @@
 #include "nsComponentManagerUtils.h"
 #include "nsIBrowserDOMWindow.h"
 
-#ifdef ACCESSIBILITY
-#  include "mozilla/a11y/PDocAccessible.h"
-#endif
 #include "GMPServiceParent.h"
 #include "HandlerServiceParent.h"
 #include "IHistory.h"
 #if defined(XP_WIN) && defined(ACCESSIBILITY)
 #  include "mozilla/a11y/AccessibleWrap.h"
 #  include "mozilla/a11y/Compatibility.h"
-#  include "mozilla/mscom/ActCtxResource.h"
 #endif
 #include <map>
 #include <utility>
@@ -316,10 +312,6 @@
 #ifdef XP_WIN
 #  include "mozilla/widget/AudioSession.h"
 #  include "mozilla/WinDllServices.h"
-#endif
-
-#ifdef ACCESSIBILITY
-#  include "nsAccessibilityService.h"
 #endif
 
 #ifdef MOZ_CODE_COVERAGE
@@ -1695,12 +1687,10 @@ void ContentParent::Init() {
 #  if defined(XP_WIN)
     // Don't init content a11y if we detect an incompat version of JAWS in use.
     if (!mozilla::a11y::Compatibility::IsOldJAWS()) {
-      Unused << SendActivateA11y(
-          ::GetCurrentThreadId(),
-          a11y::MsaaAccessible::GetContentProcessIdFor(ChildID()));
+      Unused << SendActivateA11y();
     }
 #  else
-    Unused << SendActivateA11y(0, 0);
+    Unused << SendActivateA11y();
 #  endif
   }
 #endif  // #ifdef ACCESSIBILITY
@@ -2238,10 +2228,6 @@ void ContentParent::ActorDestroy(ActorDestroyReason why) {
 
   mBlobURLs.Clear();
 
-#if defined(XP_WIN) && defined(ACCESSIBILITY)
-  a11y::MsaaAccessible::ReleaseContentProcessIdFor(ChildID());
-#endif
-
 #ifdef MOZ_DIAGNOSTIC_ASSERT_ENABLED
   AssertNotInPool();
 #endif
@@ -2654,20 +2640,6 @@ bool ContentParent::BeginSubprocessLaunch(ProcessPriority aPriority) {
   // handle and its content length, to minimize the startup time of content
   // processes.
   ::mozilla::ipc::ExportSharedJSInit(*mSubprocess, extraArgs);
-
-#if defined(XP_WIN) && defined(ACCESSIBILITY)
-  // Determining the accessibility resource ID causes problems with the sandbox,
-  // so we pass it on the command line as it is required very early in process
-  // start up. It is not required when the caching mechanism is being used.
-  if (!a11y::IsCacheActive()) {
-    // The accessibility resource ID may not be set in some cases, for example
-    // in xpcshell tests.
-    auto resourceId = mscom::ActCtxResource::GetAccessibilityResourceId();
-    if (resourceId) {
-      geckoargs::sA11yResourceId.Put(resourceId, extraArgs);
-    }
-  }
-#endif
 
   // Register ContentParent as an observer for changes to any pref
   // whose prefix matches the empty string, i.e. all of them.  The
@@ -4079,12 +4051,10 @@ ContentParent::Observe(nsISupports* aSubject, const char* aTopic,
       // Don't init content a11y if we detect an incompat version of JAWS in
       // use.
       if (!mozilla::a11y::Compatibility::IsOldJAWS()) {
-        Unused << SendActivateA11y(
-            ::GetCurrentThreadId(),
-            a11y::MsaaAccessible::GetContentProcessIdFor(ChildID()));
+        Unused << SendActivateA11y();
       }
 #  else
-      Unused << SendActivateA11y(0, 0);
+      Unused << SendActivateA11y();
 #  endif
     } else {
       // If possible, shut down accessibility in content process when
@@ -6270,45 +6240,6 @@ ContentParent::RecvUnstoreAndBroadcastBlobURLUnregistration(
   BroadcastBlobURLUnregistration(aURI, aPrincipal, this);
   mBlobURLs.RemoveElement(aURI);
   return IPC_OK();
-}
-
-mozilla::ipc::IPCResult ContentParent::RecvGetA11yContentId(
-    uint32_t* aContentId) {
-#if defined(XP_WIN) && defined(ACCESSIBILITY)
-  *aContentId = a11y::MsaaAccessible::GetContentProcessIdFor(ChildID());
-  MOZ_ASSERT(*aContentId);
-  return IPC_OK();
-#else
-  return IPC_FAIL_NO_REASON(this);
-#endif
-}
-
-mozilla::ipc::IPCResult ContentParent::RecvA11yHandlerControl(
-    const uint32_t& aPid, const IHandlerControlHolder& aHandlerControl) {
-#if defined(XP_WIN) && defined(ACCESSIBILITY)
-  MOZ_ASSERT(!aHandlerControl.IsNull());
-  RefPtr<IHandlerControl> proxy(aHandlerControl.Get());
-  a11y::AccessibleWrap::SetHandlerControl(aPid, std::move(proxy));
-  return IPC_OK();
-#else
-  return IPC_FAIL_NO_REASON(this);
-#endif
-}
-
-bool ContentParent::HandleWindowsMessages(const Message& aMsg) const {
-  MOZ_ASSERT(aMsg.is_sync());
-
-#ifdef ACCESSIBILITY
-  // a11y messages can be triggered by windows messages, which means if we
-  // allow handling windows messages while we wait for the response to a sync
-  // a11y message we can reenter the ipc message sending code.
-  if (a11y::PDocAccessible::PDocAccessibleStart < aMsg.type() &&
-      a11y::PDocAccessible::PDocAccessibleEnd > aMsg.type()) {
-    return false;
-  }
-#endif
-
-  return true;
 }
 
 mozilla::ipc::IPCResult ContentParent::RecvGetFilesRequest(

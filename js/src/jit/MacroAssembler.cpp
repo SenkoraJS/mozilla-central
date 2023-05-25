@@ -601,9 +601,12 @@ void MacroAssembler::bumpPointerAllocate(Register result, Register temp,
     storePtr(ImmWord(headerWord),
              Address(result, -js::Nursery::nurseryCellHeaderSize()));
 
-    // Only update the catch all allocation site if the profiler is
-    // enabled. This is used to calculate the nursery allocation count.
-    if (runtime()->geckoProfiler().enabled()) {
+    // Update the catch all allocation site for strings or if the profiler is
+    // enabled. This is used to calculate the nursery allocation count. The
+    // string data is used to determine whether to disable nursery string
+    // allocation.
+    if (traceKind == JS::TraceKind::String ||
+        runtime()->geckoProfiler().enabled()) {
       uint32_t* countAddress = site->nurseryAllocCountAddress();
       CheckedInt<int32_t> counterOffset =
           (CheckedInt<uintptr_t>(uintptr_t(countAddress)) -
@@ -4901,15 +4904,13 @@ void MacroAssembler::wasmCallRef(const wasm::CallSiteDesc& desc,
   bind(&done);
 }
 
-bool MacroAssembler::needScratch1ForBranchWasmGcRefType(
-    const wasm::RefType& type) {
+bool MacroAssembler::needScratch1ForBranchWasmGcRefType(wasm::RefType type) {
   MOZ_ASSERT(type.isValid());
   MOZ_ASSERT(type.isAnyHierarchy());
   return !type.isNone() && !type.isAny();
 }
 
-bool MacroAssembler::needScratch2ForBranchWasmGcRefType(
-    const wasm::RefType& type) {
+bool MacroAssembler::needScratch2ForBranchWasmGcRefType(wasm::RefType type) {
   MOZ_ASSERT(type.isValid());
   MOZ_ASSERT(type.isAnyHierarchy());
   return type.isTypeRef() &&
@@ -4917,39 +4918,44 @@ bool MacroAssembler::needScratch2ForBranchWasmGcRefType(
 }
 
 bool MacroAssembler::needSuperSuperTypeVectorForBranchWasmGcRefType(
-    const wasm::RefType& type) {
+    wasm::RefType type) {
   return type.isTypeRef();
 }
 
 void MacroAssembler::branchWasmGcObjectIsRefType(
-    Register object, const wasm::RefType& type, Label* label, bool onSuccess,
-    Register superSuperTypeVector, Register scratch1, Register scratch2) {
-  MOZ_ASSERT(type.isValid());
-  MOZ_ASSERT(type.isAnyHierarchy());
-  MOZ_ASSERT_IF(needScratch1ForBranchWasmGcRefType(type),
+    Register object, wasm::RefType sourceType, wasm::RefType destType,
+    Label* label, bool onSuccess, Register superSuperTypeVector,
+    Register scratch1, Register scratch2) {
+  MOZ_ASSERT(sourceType.isValid());
+  MOZ_ASSERT(destType.isValid());
+  MOZ_ASSERT(sourceType.isAnyHierarchy());
+  MOZ_ASSERT(destType.isAnyHierarchy());
+  MOZ_ASSERT_IF(needScratch1ForBranchWasmGcRefType(destType),
                 scratch1 != Register::Invalid());
-  MOZ_ASSERT_IF(needScratch2ForBranchWasmGcRefType(type),
+  MOZ_ASSERT_IF(needScratch2ForBranchWasmGcRefType(destType),
                 scratch2 != Register::Invalid());
-  MOZ_ASSERT_IF(needSuperSuperTypeVectorForBranchWasmGcRefType(type),
+  MOZ_ASSERT_IF(needSuperSuperTypeVectorForBranchWasmGcRefType(destType),
                 superSuperTypeVector != Register::Invalid());
 
   Label fallthrough;
   Label* successLabel = onSuccess ? label : &fallthrough;
   Label* failLabel = onSuccess ? &fallthrough : label;
-  Label* nullLabel = type.isNullable() ? successLabel : failLabel;
+  Label* nullLabel = destType.isNullable() ? successLabel : failLabel;
 
   // Check for null.
-  branchTestPtr(Assembler::Zero, object, object, nullLabel);
+  if (sourceType.isNullable()) {
+    branchTestPtr(Assembler::Zero, object, object, nullLabel);
+  }
 
   // The only value that can inhabit 'none' is null. So, early out if we got
   // not-null.
-  if (type.isNone()) {
+  if (destType.isNone()) {
     jump(failLabel);
     bind(&fallthrough);
     return;
   }
 
-  if (type.isAny()) {
+  if (destType.isAny()) {
     // No further checks for 'any'
     jump(successLabel);
     bind(&fallthrough);
@@ -4959,9 +4965,11 @@ void MacroAssembler::branchWasmGcObjectIsRefType(
   // 'type' is now 'eq' or lower, which currently will always be a gc object.
   // Test for non-gc objects.
   MOZ_ASSERT(scratch1 != Register::Invalid());
-  branchTestObjectIsWasmGcObject(false, object, scratch1, failLabel);
+  if (!wasm::RefType::isSubTypeOf(sourceType, wasm::RefType::eq())) {
+    branchTestObjectIsWasmGcObject(false, object, scratch1, failLabel);
+  }
 
-  if (type.isEq()) {
+  if (destType.isEq()) {
     // No further checks for 'eq'
     jump(successLabel);
     bind(&fallthrough);
@@ -4978,10 +4986,10 @@ void MacroAssembler::branchWasmGcObjectIsRefType(
 
   loadPtr(Address(object, int32_t(WasmGcObject::offsetOfSuperTypeVector())),
           scratch1);
-  if (type.isTypeRef()) {
+  if (destType.isTypeRef()) {
     // concrete type, do superTypeVector check
     branchWasmSuperTypeVectorIsSubtype(scratch1, superSuperTypeVector, scratch2,
-                                       type.typeDef()->subTypingDepth(),
+                                       destType.typeDef()->subTypingDepth(),
                                        successLabel, true);
   } else {
     // abstract type, do kind check
@@ -4990,7 +4998,7 @@ void MacroAssembler::branchWasmGcObjectIsRefType(
             scratch1);
     load8ZeroExtend(Address(scratch1, int32_t(wasm::TypeDef::offsetOfKind())),
                     scratch1);
-    branch32(Assembler::Equal, scratch1, Imm32(int32_t(type.typeDefKind())),
+    branch32(Assembler::Equal, scratch1, Imm32(int32_t(destType.typeDefKind())),
              successLabel);
   }
 

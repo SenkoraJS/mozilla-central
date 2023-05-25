@@ -45,7 +45,6 @@
 
 #ifdef XP_WIN
 #  include "mozilla/a11y/Compatibility.h"
-#  include "mozilla/dom/ContentChild.h"
 #  include "mozilla/StaticPtr.h"
 #endif
 
@@ -680,13 +679,6 @@ void nsAccessibilityService::TableLayoutGuessMaybeChanged(
   if (DocAccessible* document = GetDocAccessible(aPresShell)) {
     if (LocalAccessible* acc = document->GetAccessible(aContent)) {
       if (LocalAccessible* table = nsAccUtils::TableFor(acc)) {
-        if (!a11y::IsCacheActive()) {
-          // Only fire this event when the cache is off -- we don't
-          // need to maintain the mac table cache otherwise, since
-          // we'll use the core cache instead.
-          document->FireDelayedEvent(
-              nsIAccessibleEvent::EVENT_TABLE_STYLING_CHANGED, table);
-        }
         document->QueueCacheUpdate(table, CacheDomain::Table);
       }
     }
@@ -1486,21 +1478,7 @@ bool nsAccessibilityService::Init() {
   if (XRE_IsParentProcess()) {
     gApplicationAccessible = new ApplicationAccessibleWrap();
   } else {
-#if defined(XP_WIN)
-    dom::ContentChild* contentChild = dom::ContentChild::GetSingleton();
-    MOZ_ASSERT(contentChild);
-    // If we were instantiated by the chrome process, GetMsaaID() will return
-    // a non-zero value and we may safely continue with initialization.
-    if (!a11y::IsCacheActive() && !contentChild->GetMsaaID()) {
-      // Since we were not instantiated by chrome, we need to synchronously
-      // obtain a MSAA content process id.
-      contentChild->SendGetA11yContentId();
-    }
-
-    gApplicationAccessible = new ApplicationAccessibleWrap();
-#else
     gApplicationAccessible = new ApplicationAccessible();
-#endif  // defined(XP_WIN)
   }
 
   NS_ADDREF(gApplicationAccessible);  // will release in Shutdown()

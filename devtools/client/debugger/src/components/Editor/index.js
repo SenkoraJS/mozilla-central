@@ -43,6 +43,8 @@ import {
   getBlackBoxRanges,
   isSourceBlackBoxed,
   getHighlightedLineRangeForSelectedSource,
+  isSourceMapIgnoreListEnabled,
+  isSourceOnSourceMapIgnoreList,
 } from "../../selectors";
 
 // Redux actions
@@ -141,6 +143,7 @@ class Editor extends PureComponent {
       blackboxedRanges: PropTypes.object.isRequired,
       breakableLines: PropTypes.object.isRequired,
       highlightedLineRange: PropTypes.object,
+      isSourceOnIgnoreList: PropTypes.bool,
     };
   }
 
@@ -414,6 +417,7 @@ class Editor extends PureComponent {
       isPaused,
       conditionalPanelLocation,
       closeConditionalPanel,
+      isSourceOnIgnoreList,
       blackboxedRanges,
     } = this.props;
     const { editor } = this.state;
@@ -458,6 +462,7 @@ class Editor extends PureComponent {
           editorActions,
           editor,
           blackboxedRanges,
+          isSourceOnIgnoreList,
           line
         ),
       ]);
@@ -485,6 +490,7 @@ class Editor extends PureComponent {
       continueToHere,
       breakableLines,
       blackboxedRanges,
+      isSourceOnIgnoreList,
     } = this.props;
 
     // ignore right clicks in the gutter
@@ -525,7 +531,11 @@ class Editor extends PureComponent {
       sourceLine,
       ev.altKey,
       ev.shiftKey ||
-        isLineBlackboxed(blackboxedRanges[selectedSource.url], sourceLine)
+        isLineBlackboxed(
+          blackboxedRanges[selectedSource.url],
+          sourceLine,
+          isSourceOnIgnoreList
+        )
     );
   };
 
@@ -678,17 +688,15 @@ class Editor extends PureComponent {
         {highlightedLineRange ? (
           <HighlightLines editor={editor} range={highlightedLineRange} />
         ) : null}
-        {features.blackboxLines ? <BlackboxLines editor={editor} /> : null}
+        <BlackboxLines editor={editor} />
         <Exceptions />
-        {
-          <EditorMenu
-            editor={editor}
-            contextMenu={contextMenu}
-            clearContextMenu={this.clearContextMenu}
-            selectedSource={selectedSource}
-            editorWrappingEnabled={editorWrappingEnabled}
-          />
-        }
+        <EditorMenu
+          editor={editor}
+          contextMenu={contextMenu}
+          clearContextMenu={this.clearContextMenu}
+          selectedSource={selectedSource}
+          editorWrappingEnabled={editorWrappingEnabled}
+        />
         {conditionalPanelLocation ? <ConditionalPanel editor={editor} /> : null}
         <ColumnBreakpoints editor={editor} />
         {isPaused && inlinePreviewEnabled ? (
@@ -743,6 +751,9 @@ const mapStateToProps = state => {
     selectedSourceIsBlackBoxed: selectedSource
       ? isSourceBlackBoxed(state, selectedSource)
       : null,
+    isSourceOnIgnoreList:
+      isSourceMapIgnoreListEnabled(state) &&
+      isSourceOnSourceMapIgnoreList(state, selectedSource),
     searchInFileEnabled: getActiveSearch(state) === "file",
     conditionalPanelLocation: getConditionalPanelLocation(state),
     symbols: getSymbols(state, selectedLocation),

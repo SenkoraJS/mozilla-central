@@ -45,6 +45,7 @@ if (isNode()) {
   pref("devtools.debugger.log-event-breakpoints", false);
   pref("devtools.debugger.javascript-tracing-log-method", "console");
   pref("devtools.debugger.hide-ignored-sources", false);
+  pref("devtools.debugger.source-map-ignore-list-enabled", true);
   pref("devtools.debugger.features.wasm", true);
   pref("devtools.debugger.features.map-scopes", true);
   pref("devtools.debugger.features.code-folding", false);
@@ -55,7 +56,6 @@ if (isNode()) {
   pref("devtools.debugger.features.map-await-expression", true);
   pref("devtools.debugger.features.log-points", true);
   pref("devtools.debugger.features.inline-preview", true);
-  pref("devtools.debugger.features.blackbox-lines", false);
   pref("devtools.debugger.features.javascript-tracing", false);
   pref("devtools.editor.tabsize", 2);
 }
@@ -106,6 +106,10 @@ export const prefs = new PrefsHelper("devtools", {
     "debugger.javascript-tracing-log-method",
   ],
   hideIgnoredSources: ["Bool", "debugger.hide-ignored-sources"],
+  sourceMapIgnoreListEnabled: [
+    "Bool",
+    "debugger.source-map-ignore-list-enabled",
+  ],
 });
 
 // The pref may not be defined. Defaulting to null isn't viable (cursor never blinks).
@@ -126,7 +130,6 @@ export const features = new PrefsHelper("devtools.debugger.features", {
   commandClick: ["Bool", "command-click"],
   inlinePreview: ["Bool", "inline-preview"],
   windowlessServiceWorkers: ["Bool", "windowless-service-workers"],
-  blackboxLines: ["Bool", "blackbox-lines"],
   javascriptTracing: ["Bool", "javascript-tracing"],
 });
 
