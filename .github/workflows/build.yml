@@ -12,7 +12,7 @@ jobs:
       - name: Update apt database
         run: sudo apt-get update
 
-      - name: Install libtool
+      - name: Install dependencies
         run: sudo apt-get -y install mercurial curl python3 python3-pip pkg-config libtool
 
       - name: Configure
