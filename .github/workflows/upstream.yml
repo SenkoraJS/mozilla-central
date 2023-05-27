@@ -25,7 +25,7 @@ jobs:
           sudo -E apt-get -qq clean
 
       - name: Clone upstream
-        run: hg clone https://hg.mozilla.org/mozilla-central mozilla-central
+        run: hg clone --config ui.dotfiles=true https://hg.mozilla.org/mozilla-central mozilla-central
 
       - name: Move source to root
         run: mv mozilla-central/* $PWD/ && rm -rf mozilla-central
