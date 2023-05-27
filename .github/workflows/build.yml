@@ -50,7 +50,8 @@ jobs:
 
       - name: Zip it
         run: |
-          zip -r libmozjs js/src/_build/js/src/build/_install/usr/
+          cd js/src/_build/js/src/build/_install/
+          zip -r libmozjs usr/
 
       - name: Create the release
         uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
@@ -62,4 +63,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            libmozjs.zip
+            js/src/_build/js/src/build/_install/libmozjs.zip
