@@ -22,7 +22,7 @@ jobs:
           cd js/src/
           mkdir _build
           cd _build
-          NIGHTLY_BUILD=1 ../configure --disable-jemalloc --with-system-zlib  --with-intl-api --disable-debug --enable-optimize --enable-jit  --prefix=/usr
+          NIGHTLY_BUILD=1 ../configure --disable-jemalloc --with-system-zlib  --with-intl-api --disable-debug --enable-optimize --enable-jit  --prefix=/usr --disable-shared-js
 
       - name: Compile
         run: |
