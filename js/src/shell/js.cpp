@@ -623,15 +623,13 @@ bool shell::enableToSource = false;
 bool shell::enablePropertyErrorMessageFix = false;
 bool shell::enableIteratorHelpers = false;
 bool shell::enableShadowRealms = false;
+bool shell::enableArrayFromAsync = true;
 #ifdef NIGHTLY_BUILD
 bool shell::enableArrayGrouping = false;
-bool shell::enableArrayFromAsync = false;
 // Pref for String.prototype.{is,to}WellFormed() methods.
 bool shell::enableWellFormedUnicodeStrings = false;
 #endif
-#ifdef ENABLE_CHANGE_ARRAY_BY_COPY
 bool shell::enableChangeArrayByCopy = false;
-#endif
 #ifdef ENABLE_NEW_SET_METHODS
 bool shell::enableNewSetMethods = true;
 #endif
@@ -3893,14 +3891,12 @@ static void SetStandardRealmOptions(JS::RealmOptions& options) {
       .setPropertyErrorMessageFixEnabled(enablePropertyErrorMessageFix)
       .setIteratorHelpersEnabled(enableIteratorHelpers)
       .setShadowRealmsEnabled(enableShadowRealms)
+      .setArrayFromAsyncEnabled(enableArrayFromAsync)
 #ifdef NIGHTLY_BUILD
       .setArrayGroupingEnabled(enableArrayGrouping)
-      .setArrayFromAsyncEnabled(enableArrayFromAsync)
       .setWellFormedUnicodeStringsEnabled(enableWellFormedUnicodeStrings)
 #endif
-#ifdef ENABLE_CHANGE_ARRAY_BY_COPY
       .setChangeArrayByCopyEnabled(enableChangeArrayByCopy)
-#endif
 #ifdef ENABLE_NEW_SET_METHODS
       .setNewSetMethodsEnabled(enableNewSetMethods)
 #endif
@@ -11384,21 +11380,16 @@ bool InitOptionParser(OptionParser& op) {
                         "Enable iterator helpers") ||
       !op.addBoolOption('\0', "enable-shadow-realms", "Enable ShadowRealms") ||
       !op.addBoolOption('\0', "enable-array-grouping",
-                        "Enable Array.fromAsync") ||
+                        "Enable Array.grouping") ||
       !op.addBoolOption('\0', "enable-array-from-async",
-                        "Enable Array Grouping") ||
+                        "Enable Array.fromAsync") ||
       !op.addBoolOption('\0', "enable-well-formed-unicode-strings",
                         "Enable String.prototype.{is,to}WellFormed() methods"
                         "(Well-Formed Unicode Strings)") ||
-#ifdef ENABLE_CHANGE_ARRAY_BY_COPY
       !op.addBoolOption('\0', "enable-change-array-by-copy",
                         "Enable change-array-by-copy methods") ||
       !op.addBoolOption('\0', "disable-change-array-by-copy",
                         "Disable change-array-by-copy methods") ||
-#else
-      !op.addBoolOption('\0', "enable-change-array-by-copy", "no-op") ||
-      !op.addBoolOption('\0', "disable-change-array-by-copy", "no-op") ||
-#endif
 #ifdef ENABLE_NEW_SET_METHODS
       !op.addBoolOption('\0', "enable-new-set-methods",
                         "Enable New Set methods") ||
@@ -11908,15 +11899,13 @@ bool SetContextOptions(JSContext* cx, const OptionParser& op) {
       !op.getBoolOption("disable-property-error-message-fix");
   enableIteratorHelpers = op.getBoolOption("enable-iterator-helpers");
   enableShadowRealms = op.getBoolOption("enable-shadow-realms");
+  enableArrayFromAsync = op.getBoolOption("enable-array-from-async");
 #ifdef NIGHTLY_BUILD
   enableArrayGrouping = op.getBoolOption("enable-array-grouping");
-  enableArrayFromAsync = op.getBoolOption("enable-array-from-async");
   enableWellFormedUnicodeStrings =
       op.getBoolOption("enable-well-formed-unicode-strings");
 #endif
-#ifdef ENABLE_CHANGE_ARRAY_BY_COPY
-  enableChangeArrayByCopy = op.getBoolOption("enable-change-array-by-copy");
-#endif
+  enableChangeArrayByCopy = !op.getBoolOption("disable-change-array-by-copy");
 #ifdef ENABLE_NEW_SET_METHODS
   enableNewSetMethods = op.getBoolOption("enable-new-set-methods");
 #endif
