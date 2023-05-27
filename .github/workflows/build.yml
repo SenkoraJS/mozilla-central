@@ -12,66 +12,28 @@ jobs:
       - name: Update apt database
         run: sudo apt-get update
 
-      - name: Install mercurial
-        run: sudo apt-get -y install mercurial
-
-      - name: Install python
-        run: sudo apt-get install curl python3 python3-pip
-
-      - name: Install pkg-config
-        run: sudo apt-get install pkg-config
-
       - name: Install libtool
-        run: sudo apt-get install libtool
+        run: sudo apt-get -y install mercurial curl python3 python3-pip pkg-config libtool
 
-      - name: Configure mozconfig
+      - name: Configure
         run: |
-          echo -e "ac_add_options --enable-project=js\nmk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-@CONFIG_GUESS@\nac_add_options --prefix=/usr\nac_add_options --enable-release\nac_add_options --enable-hardening\nac_add_options --enable-optimize\nac_add_options --enable-rust-simd\nac_add_options --enable-linker=lld\nac_add_options --disable-bootstrap\nac_add_options --disable-debug\nac_add_options --disable-jemalloc\nac_add_options --disable-strip\nac_add_options --disable-unified-build\n\n# System libraries\nac_add_options --with-system-zlib\nac_add_options --without-system-icu\n\n# Features\nac_add_options --enable-shared-js\nac_add_options --with-intl-api" > .mozconfig
-          export MOZCONFIG=.mozconfig
+          cd js/src/
+          mkdir _build
+          cd _build
+          NIGHTLY_BUILD=1 ../configure --disable-jemalloc --with-system-zlib  --with-intl-api --disable-debug --enable-optimize --enable-jit  --prefix=/usr
 
-      - name: Bootstrap
-        run: ./mach bootstrap --application-choice js
-
-      #- name: Clobber
-      #  run: ./mach clobber
-
-      - name: Build
-        run: MOZCONFIG=.mozconfig ./mach build
-
-      - name: Temp directory
+      - name: Compile
         run: |
-          mkdir temp
-          cd temp/
-          mkdir bin
-          mkdir include
-          mkdir lib
-          cp ../obj-*/dist/bin/js bin/
-          cp ../obj-*/js/src/build/js-config bin/
-          cp -r ../obj-*/dist/include include/
-          cp ../obj-*/dist/bin/lib*.so lib/
-          mkdir lib/pkgconfig
-          cp ../obj-*/js/src/build/js.pc lib/pkgconfig/
+          cd js/src/_build/
+          NIGHTLY_BUILD=1 make -j$(nproc)
 
+      - name: Install
+        run: |
+          cd js/src/_build/
+          DESTDIR=./_install make install
+          
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: obj
-          path: temp/**
-
-      - name: Upload artifacts - bin
-        uses: actions/upload-artifact@v2
-        with:
-          name: bin
-          path: temp/bin/**
-
-      - name: Upload artifacts - include
-        uses: actions/upload-artifact@v2
-        with:
-          name: include
-          path: temp/include/**
-
-      - name: Upload artifacts - lib
-        uses: actions/upload-artifact@v2
-        with:
-          name: lib
-          path: temp/lib/**
+          name: libmozjs
+          path: js/src/_build/js/src/build/_install/usr/
