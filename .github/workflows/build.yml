@@ -46,6 +46,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Zip it
+        run: |
+          zip -r libmozjs js/src/_build/js/src/build/_install/usr/
+
       - name: Create the release
         uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
         env:
@@ -56,4 +60,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            js/src/_build/js/src/build/_install/usr/
+            libmozjs.zip
