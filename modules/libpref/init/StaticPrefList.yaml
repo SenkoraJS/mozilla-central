@@ -968,11 +968,6 @@
   value: true
   mirror: always
 
-- name: browser.cache.offline.enable
-  type: bool
-  value: @IS_NOT_EARLY_BETA_OR_EARLIER@
-  mirror: always
-
 - name: browser.cache.disk.enable
   type: RelaxedAtomicBool
   value: true
@@ -1329,12 +1324,6 @@
 - name: browser.dom.window.dump.enabled
   type: RelaxedAtomicBool
   value: @IS_NOT_MOZILLA_OFFICIAL@
-  mirror: always
-
-# See bug 1710926
-- name: browser.download.improvements_to_download_panel
-  type: bool
-  value: true
   mirror: always
 
 # See bug 1738574
@@ -4305,7 +4294,7 @@
 # Whether to shim a Components object on untrusted windows.
 - name: dom.use_components_shim
   type: bool
-  value: false
+  value: @IS_NOT_NIGHTLY_BUILD@
   mirror: always
 
 - name: dom.vibrator.enabled
@@ -6634,13 +6623,6 @@
     value: false
     mirror: once
 #endif
-  # Whether to apply a mitigation disabling DirectComposition for NVIDIA users
-  # with mixed monitor refresh rates. (This mitigation induces bug 1763981 on
-  # some devices.)
--   name: gfx.webrender.dcomp-apply-1704954
-    type: bool
-    value: true
-    mirror: once
 
 # Whether or not fallback to Software WebRender requires the GPU process.
 - name: gfx.webrender.fallback.software.requires-gpu-process
@@ -9278,6 +9260,13 @@
 - name: layout.css.scroll-anchoring.max-consecutive-adjustments
   type: uint32_t
   value: 10
+  mirror: always
+
+# Whether to reset counting the consecutive scroll-anchoring adjustments during
+# running async scrolling by APZ.
+- name: layout.css.scroll-anchoring.reset-heuristic-during-animation
+  type: bool
+  value: false
   mirror: always
 
 # The time after which we reset the max-consecutive-adjustments period, in
@@ -12884,15 +12873,6 @@
 
 # When false, text in plaintext documents does not wrap long lines.
 - name: plain_text.wrap_long_lines
-  type: bool
-  value: true
-  mirror: always
-
-#---------------------------------------------------------------------------
-# Prefs starting with "plugins."
-#---------------------------------------------------------------------------
-
-- name: plugins.http_https_only
   type: bool
   value: true
   mirror: always

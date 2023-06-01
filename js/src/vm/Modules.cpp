@@ -113,8 +113,7 @@ static JSObject* CompileModuleHelper(JSContext* cx,
   JS::Rooted<JSObject*> mod(cx);
   {
     AutoReportFrontendContext fc(cx);
-    mod = frontend::CompileModule(cx, &fc, cx->stackLimitForCurrentPrincipal(),
-                                  options, srcBuf);
+    mod = frontend::CompileModule(cx, &fc, options, srcBuf);
   }
   return mod;
 }
@@ -288,14 +287,6 @@ JS_PUBLIC_API void JS::ClearModuleEnvironment(JSObject* moduleObj) {
   for (uint32_t i = numReserved; i < numSlots; i++) {
     env->setSlot(i, UndefinedValue());
   }
-}
-
-JS_PUBLIC_API void JS::AssertModuleUnlinked(JSObject* moduleObj) {
-  MOZ_ASSERT(moduleObj);
-  AssertHeapIsIdle();
-
-  MOZ_DIAGNOSTIC_ASSERT(moduleObj->as<ModuleObject>().status() ==
-                        ModuleStatus::Unlinked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
