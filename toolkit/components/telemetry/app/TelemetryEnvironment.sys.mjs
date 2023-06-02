@@ -223,6 +223,7 @@ const DEFAULT_ENVIRONMENT_PREFS = new Map([
   ["browser.cache.disk.enable", { what: RECORD_PREF_VALUE }],
   ["browser.cache.disk.capacity", { what: RECORD_PREF_VALUE }],
   ["browser.cache.memory.enable", { what: RECORD_PREF_VALUE }],
+  ["browser.cache.offline.enable", { what: RECORD_PREF_VALUE }],
   ["browser.formfill.enable", { what: RECORD_PREF_VALUE }],
   ["browser.fixup.alternate.enabled", { what: RECORD_DEFAULTPREF_VALUE }],
   ["browser.migrate.interactions.bookmarks", { what: RECORD_PREF_VALUE }],
@@ -362,8 +363,6 @@ const DEFAULT_ENVIRONMENT_PREFS = new Map([
   ["signon.rememberSignons", { what: RECORD_PREF_VALUE }],
   ["signon.firefoxRelay.feature", { what: RECORD_PREF_VALUE }],
   ["toolkit.telemetry.pioneerId", { what: RECORD_PREF_STATE }],
-  ["widget.content.allow-gtk-dark-theme", { what: RECORD_DEFAULTPREF_VALUE }],
-  ["widget.content.gtk-theme-override", { what: RECORD_PREF_STATE }],
   [
     "widget.content.gtk-high-contrast.enabled",
     { what: RECORD_DEFAULTPREF_VALUE },

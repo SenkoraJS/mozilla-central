@@ -167,6 +167,16 @@ urlbar:
         to increment the minimum length any further.
         If not defines a cap, no cap will be used, and the user will be able to
         increment the minimum length without any limit.
+    addonsUITreatment:
+      type: string
+      enum:
+        - a
+        - b
+      description: >-
+        Define the UI type for addon suggestions.
+        In case of "a", display rating stars and review volume on the bottom of
+        the suggestion. In case of "b", display a label explaining that the
+        addon suggestion is a recommendation.
     autoFillAdaptiveHistoryEnabled:
       type: boolean
       fallbackPref: browser.urlbar.autoFill.adaptiveHistory.enabled
@@ -1527,3 +1537,23 @@ deviceMigration:
       description: True if new help menu item should be hidden
       type: boolean
       fallbackPref: browser.device-migration.help-menu.hidden
+
+opaqueResponseBlocking:
+  description: Prefs to enable Opaque Response Blocking
+  owner: farre@mozilla.com
+  isEarlyStartup: true
+  hasExposure: true
+  exposureDescription: Exposure is sent when a response is blocked
+  variables:
+    enabled:
+      description: Whether ORB is enabled
+      type: boolean
+      setPref: "browser.opaqueResponseBlocking"
+    javascriptValidator:
+      description: Whether JavaScript validation for ORB is enabled
+      type: boolean
+      setPref: "browser.opaqueResponseBlocking.javascriptValidator"
+    filterFetchResponse:
+      description: Whether filtering of internal responses in the parent ORB is enabled
+      type: int
+      setPref: "browser.opaqueResponseBlocking.filterFetchResponse"
