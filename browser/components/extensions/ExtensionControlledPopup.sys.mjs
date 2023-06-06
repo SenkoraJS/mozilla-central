@@ -1,9 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-/* exported ExtensionControlledPopup */
-
-"use strict";
 
 /*
  * @fileOverview
@@ -17,28 +14,18 @@
  * the change by triggering the primary action.
  */
 
-var EXPORTED_SYMBOLS = ["ExtensionControlledPopup"];
-
-const { ExtensionCommon } = ChromeUtils.importESModule(
-  "resource://gre/modules/ExtensionCommon.sys.mjs"
-);
-const { XPCOMUtils } = ChromeUtils.importESModule(
-  "resource://gre/modules/XPCOMUtils.sys.mjs"
-);
+import { ExtensionCommon } from "resource://gre/modules/ExtensionCommon.sys.mjs";
+import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
 
-ChromeUtils.defineModuleGetter(
-  lazy,
-  "AddonManager",
-  "resource://gre/modules/AddonManager.jsm"
-);
 ChromeUtils.defineModuleGetter(
   lazy,
   "BrowserUIUtils",
   "resource:///modules/BrowserUIUtils.jsm"
 );
 ChromeUtils.defineESModuleGetters(lazy, {
+  AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
   CustomizableUI: "resource:///modules/CustomizableUI.sys.mjs",
   ExtensionSettingsStore:
     "resource://gre/modules/ExtensionSettingsStore.sys.mjs",
@@ -62,7 +49,7 @@ XPCOMUtils.defineLazyGetter(lazy, "distributionAddonsList", function () {
   return new Set(addonList);
 });
 
-class ExtensionControlledPopup {
+export class ExtensionControlledPopup {
   /* Provide necessary options for the popup.
    *
    * @param {object} opts Options for configuring popup.
