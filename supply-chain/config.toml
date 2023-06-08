@@ -35,6 +35,10 @@ notes = "This is a crate Henri wrote which is also published. We should probably
 audit-as-crates-io = true
 notes = "This is a pinned version of the upstream code, presumably to get a fix that hadn't been released yet. We should consider switching to the latest official release."
 
+[policy.cose]
+audit-as-crates-io = true
+notes = "This is upstream plus a warning fix from bug 1823866."
+
 [policy.cssparser]
 audit-as-crates-io = true
 notes = "Upstream code plus nesting changes that haven't been published yet authored by us"
@@ -784,10 +788,6 @@ criteria = "safe-to-deploy"
 [[exemptions.shlex]]
 version = "1.1.0"
 criteria = "safe-to-deploy"
-
-[[exemptions.signal-hook-registry]]
-version = "1.4.1"
-criteria = "safe-to-run"
 
 [[exemptions.siphasher]]
 version = "0.3.10"

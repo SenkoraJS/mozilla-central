@@ -2597,6 +2597,13 @@
   mirror: always
   do_not_use_directly: true
 
+# Guard for bug 1731504, in case fix breaks more websites
+# If true, event is first captured then bubbled on target element
+- name: dom.events.phases.correctOrderOnTarget
+  type: RelaxedAtomicBool
+  value: true
+  mirror: always
+
 # This pref controls whether or not the `protected` dataTransfer state is
 # enabled. If the `protected` dataTransfer stae is disabled, then the
 # DataTransfer will be read-only whenever it should be protected, and will not
@@ -8625,14 +8632,6 @@
   mirror: always
   rust: true
 
-# Is support for :nth-child(An+B of S) and :nth-last-child(An+B of S) enabled?
-# Before enabling everywhere, make sure blockers of bug 1808229 are fixed.
-- name: layout.css.nth-child-of.enabled
-  type: RelaxedAtomicBool
-  value: true
-  mirror: always
-  rust: true
-
 # Is support for :has() enabled?
 - name: layout.css.has-selector.enabled
   type: RelaxedAtomicBool
@@ -11106,6 +11105,15 @@
   value: true
   mirror: always
 
+# On Mac, enables using the `<Brand> Media Plugin Helper` executable as the
+# GMP child process instead of the plugin-container executable.
+#if defined(XP_MACOSX)
+-   name: media.plugin_helper_process.enabled
+    type: RelaxedAtomicBool
+    value: false
+    mirror: always
+#endif
+
 #---------------------------------------------------------------------------
 # Prefs starting with "midi."
 #---------------------------------------------------------------------------
@@ -12504,6 +12512,12 @@
 - name: network.http.http3.version_negotiation.enabled
   type: RelaxedAtomicBool
   value: false
+  mirror: always
+
+# When a Http/3 connection failed, whether to retry with a different IP address.
+- name: network.http.http3.retry_different_ip_family
+  type: RelaxedAtomicBool
+  value: true
   mirror: always
 
 # When true, a http request will be upgraded to https when HTTPS RR is
