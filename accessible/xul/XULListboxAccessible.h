@@ -7,8 +7,7 @@
 #define mozilla_a11y_XULListboxAccessible_h__
 
 #include "BaseAccessibles.h"
-#include "TableAccessible.h"
-#include "TableCellAccessible.h"
+#include "mozilla/a11y/TableAccessible.h"
 #include "XULMenuAccessible.h"
 #include "XULSelectControlAccessible.h"
 

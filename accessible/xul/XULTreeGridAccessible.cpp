@@ -5,6 +5,7 @@
 
 #include "XULTreeGridAccessible.h"
 
+#include <stdint.h>
 #include "AccAttributes.h"
 #include "LocalAccessible-inl.h"
 #include "nsAccCache.h"
@@ -21,6 +22,7 @@
 #include "nsITreeSelection.h"
 #include "nsComponentManagerUtils.h"
 #include "mozilla/PresShell.h"
+#include "mozilla/a11y/TableAccessible.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/TreeColumnBinding.h"
 #include "mozilla/dom/XULTreeElementBinding.h"
@@ -147,6 +149,38 @@ bool XULTreeGridAccessible::IsRowSelected(uint32_t aRowIdx) {
 
 bool XULTreeGridAccessible::IsCellSelected(uint32_t aRowIdx, uint32_t aColIdx) {
   return IsRowSelected(aRowIdx);
+}
+
+int32_t XULTreeGridAccessible::ColIndexAt(uint32_t aCellIdx) {
+  uint32_t colCount = ColCount();
+  if (colCount < 1 || aCellIdx >= colCount * RowCount()) {
+    return -1;  // Error: column count is 0 or index out of bounds.
+  }
+
+  return static_cast<int32_t>(aCellIdx % colCount);
+}
+
+int32_t XULTreeGridAccessible::RowIndexAt(uint32_t aCellIdx) {
+  uint32_t colCount = ColCount();
+  if (colCount < 1 || aCellIdx >= colCount * RowCount()) {
+    return -1;  // Error: column count is 0 or index out of bounds.
+  }
+
+  return static_cast<int32_t>(aCellIdx / colCount);
+}
+
+void XULTreeGridAccessible::RowAndColIndicesAt(uint32_t aCellIdx,
+                                               int32_t* aRowIdx,
+                                               int32_t* aColIdx) {
+  uint32_t colCount = ColCount();
+  if (colCount < 1 || aCellIdx >= colCount * RowCount()) {
+    *aRowIdx = -1;
+    *aColIdx = -1;
+    return;  // Error: column count is 0 or index out of bounds.
+  }
+
+  *aRowIdx = static_cast<int32_t>(aCellIdx / colCount);
+  *aColIdx = static_cast<int32_t>(aCellIdx % colCount);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

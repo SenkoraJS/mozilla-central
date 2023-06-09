@@ -7,9 +7,9 @@
 #ifndef mozilla_a11y_XULTreeGridAccessible_h__
 #define mozilla_a11y_XULTreeGridAccessible_h__
 
+#include "mozilla/a11y/TableAccessible.h"
+#include "mozilla/a11y/TableCellAccessible.h"
 #include "XULTreeAccessible.h"
-#include "TableAccessible.h"
-#include "TableCellAccessible.h"
 
 namespace mozilla {
 namespace a11y {
@@ -45,6 +45,15 @@ class XULTreeGridAccessible : public XULTreeAccessible, public TableAccessible {
   virtual void SelectedColIndices(nsTArray<uint32_t>* aCols) override;
   virtual void SelectedRowIndices(nsTArray<uint32_t>* aRows) override;
   virtual LocalAccessible* AsAccessible() override { return this; }
+
+  virtual int32_t CellIndexAt(uint32_t aRowIdx, uint32_t aColIdx) override {
+    return static_cast<int32_t>(ColCount() * aRowIdx + aColIdx);
+  }
+
+  virtual int32_t ColIndexAt(uint32_t aCellIdx) override;
+  virtual int32_t RowIndexAt(uint32_t aCellIdx) override;
+  virtual void RowAndColIndicesAt(uint32_t aCellIdx, int32_t* aRowIdx,
+                                  int32_t* aColIdx) override;
 
   // LocalAccessible
   virtual TableAccessible* AsTable() override { return this; }
