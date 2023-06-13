@@ -3291,11 +3291,6 @@
   value: false
   mirror: always
 
-- name: dom.performance.children_results_ipc_timeout
-  type: uint32_t
-  value: 1000
-  mirror: always
-
 # Enable notification of performance timing
 - name: dom.performance.enable_notify_performance_timing
   type: bool
@@ -12338,11 +12333,6 @@
   value: true
   mirror: always
 
-- name: network.http.http2.persistent-settings
-  type: RelaxedAtomicBool
-  value: false
-  mirror: always
-
 - name: network.http.http2.ping-threshold
   type: RelaxedAtomicInt32
   value: 58
@@ -12548,11 +12538,6 @@
 - name: network.dns.force_use_https_rr
   type: RelaxedAtomicBool
   value: false
-  mirror: always
-
-- name: network.cache.frecency_array_check_enabled
-  type: RelaxedAtomicBool
-  value: @IS_EARLY_BETA_OR_EARLIER@
   mirror: always
 
 # When this pref is true, AddStorageEntry will return an error if the
