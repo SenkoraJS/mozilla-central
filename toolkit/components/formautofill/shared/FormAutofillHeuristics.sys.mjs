@@ -623,16 +623,10 @@ export const FormAutofillHeuristics = {
     let fieldNames = [];
     const isAutoCompleteOff =
       element.autocomplete == "off" || element.form?.autocomplete == "off";
-    if (
-      FormAutofill.isAutofillCreditCardsAvailable &&
-      (!isAutoCompleteOff || FormAutofill.creditCardsAutocompleteOff)
-    ) {
+    if (!isAutoCompleteOff || FormAutofill.creditCardsAutocompleteOff) {
       fieldNames.push(...this.CREDIT_CARD_FIELDNAMES);
     }
-    if (
-      FormAutofill.isAutofillAddressesAvailable &&
-      (!isAutoCompleteOff || FormAutofill.addressesAutocompleteOff)
-    ) {
+    if (!isAutoCompleteOff || FormAutofill.addressesAutocompleteOff) {
       fieldNames.push(...this.ADDRESS_FIELDNAMES);
     }
 
@@ -747,15 +741,9 @@ export const FormAutofillHeuristics = {
       }
     }
 
-    if (fields.length) {
-      // Find a matched field name using regex-based heuristics
-      const matchedFieldName = this._findMatchedFieldName(element, fields);
-      if (matchedFieldName) {
-        return [matchedFieldName, null, null];
-      }
-    }
-
-    return [null, null, null];
+    // Find a matched field name using regexp-based heuristics
+    const matchedFieldName = this._findMatchedFieldName(element, fields);
+    return [matchedFieldName, null, null];
   },
 
   /**
@@ -933,6 +921,10 @@ export const FormAutofillHeuristics = {
    * @returns {?string} The first matched field name
    */
   _findMatchedFieldName(element, regexps) {
+    if (!regexps.length) {
+      return null;
+    }
+
     const getElementStrings = this._getElementStrings(element);
     for (let regexp of regexps) {
       for (let string of getElementStrings) {

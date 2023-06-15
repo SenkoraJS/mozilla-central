@@ -406,10 +406,6 @@ pref("media.video-queue.default-size", 10);
 // By default, send all of them.
 pref("media.video-queue.send-to-compositor-size", 9999);
 
-// Log level for cubeb, the audio input/output system. Valid values are
-// "verbose", "normal" and "" (log disabled).
-pref("media.cubeb.logging_level", "");
-
 pref("media.cubeb.output_voice_routing", true);
 
 // GraphRunner (fixed MediaTrackGraph thread) control
@@ -3986,8 +3982,6 @@ pref("devtools.dump.emit", false);
 
 // Disable device discovery logging.
 pref("devtools.discovery.log", false);
-// Whether to scan for DevTools devices via WiFi.
-pref("devtools.remote.wifi.scan", true);
 
 // The extension ID for devtools-adb-extension.
 pref("devtools.remote.adb.extensionID", "adb@mozilla.org");

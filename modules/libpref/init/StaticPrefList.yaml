@@ -2594,7 +2594,7 @@
 # If true, event is first captured then bubbled on target element
 - name: dom.events.phases.correctOrderOnTarget
   type: RelaxedAtomicBool
-  value: true
+  value: false
   mirror: always
 
 # This pref controls whether or not the `protected` dataTransfer state is
@@ -3014,6 +3014,13 @@
 
 # Is support for key events and focus events on disabled elements enabled?
 - name: dom.forms.always_allow_key_and_focus_events.enabled
+  type: bool
+  value: @IS_NIGHTLY_BUILD@
+  mirror: always
+
+# Whether to disable only the descendants or the parent fieldset element too
+# Note that this still allows it to be selected by `:disable`.
+- name: dom.forms.fieldset_disable_only_descendants.enabled
   type: bool
   value: @IS_NIGHTLY_BUILD@
   mirror: always
@@ -13166,13 +13173,6 @@
 - name: privacy.resistFingerprinting.target_video_res
   type: uint32_t
   value: 480
-  mirror: always
-
-# Setting TZ=UTC ensures that even libc functions use the spoofed time zone.
-# We want to remove that override as soon as possible however.
-- name: privacy.resistFingerprinting.testing.setTZtoUTC
-  type: bool
-  value: false
   mirror: always
 
 # Enable resetting the fingerprinting randomization key daily for normal windwos.

@@ -2270,6 +2270,25 @@ impl_basic_rule_funcs! { (Style, StyleRule, Locked<StyleRule>),
     changed: Servo_StyleSet_StyleRuleChanged,
 }
 
+#[no_mangle]
+pub extern "C" fn Servo_StyleRule_EnsureRules(rule: &LockedStyleRule, read_only: bool) -> Strong<LockedCssRules> {
+    let global_style_data = &*GLOBAL_STYLE_DATA;
+    let lock = &global_style_data.shared_lock;
+    if read_only {
+        let guard = lock.read();
+        if let Some(ref rules) = rule.read_with(&guard).rules {
+            return rules.clone().into();
+        }
+        return CssRules::new(vec![], lock).into();
+    }
+    let mut guard = lock.write();
+    rule.write_with(&mut guard)
+        .rules
+        .get_or_insert_with(|| CssRules::new(vec![], lock))
+        .clone()
+        .into()
+}
+
 impl_basic_rule_funcs! { (Import, ImportRule, Locked<ImportRule>),
     getter: Servo_CssRules_GetImportRuleAt,
     debug: Servo_ImportRule_Debug,
@@ -2448,6 +2467,7 @@ pub extern "C" fn Servo_StyleRule_SelectorMatchesElement(
     rule: &LockedStyleRule,
     element: &RawGeckoElement,
     index: u32,
+    host: Option<&RawGeckoElement>,
     pseudo_type: PseudoStyleType,
     relevant_link_visited: bool,
 ) -> bool {
@@ -2484,6 +2504,7 @@ pub extern "C" fn Servo_StyleRule_SelectorMatchesElement(
         };
 
         let element = GeckoElement(element);
+        let host = host.map(GeckoElement);
         let quirks_mode = element.as_node().owner_doc().quirks_mode();
         let mut nth_index_cache = Default::default();
         let visited_mode = if relevant_link_visited {
@@ -2493,13 +2514,15 @@ pub extern "C" fn Servo_StyleRule_SelectorMatchesElement(
         };
         let mut ctx = MatchingContext::new_for_visited(
             matching_mode,
-            None,
+            /* bloom_filter = */ None,
             &mut nth_index_cache,
             visited_mode,
             quirks_mode,
             NeedsSelectorFlags::No,
         );
-        matches_selector(selector, 0, None, &element, &mut ctx)
+        ctx.with_shadow_host(host, |ctx| {
+            matches_selector(selector, 0, None, &element, ctx)
+        })
     })
 }
 
