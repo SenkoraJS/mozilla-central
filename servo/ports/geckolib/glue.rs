@@ -10,6 +10,7 @@ use cssparser::{Parser, ParserInput, SourceLocation, UnicodeRange};
 use dom::{DocumentState, ElementState};
 use malloc_size_of::MallocSizeOfOps;
 use nsstring::{nsCString, nsString};
+use selectors::matching::IgnoreNthChildForInvalidation;
 use selectors::NthIndexCache;
 use servo_arc::{Arc, ArcBorrow};
 use smallvec::SmallVec;
@@ -816,9 +817,13 @@ pub unsafe extern "C" fn Servo_AnimationValue_GetTransform(
 #[no_mangle]
 pub unsafe extern "C" fn Servo_AnimationValue_GetOffsetPath(
     value: &AnimationValue,
-) -> *const computed::motion::OffsetPath {
+    output: &mut computed::motion::OffsetPath,
+) {
+    use style::values::animated::ToAnimatedValue;
     match *value {
-        AnimationValue::OffsetPath(ref value) => value,
+        AnimationValue::OffsetPath(ref value) => {
+            *output = ToAnimatedValue::from_animated_value(value.clone())
+        },
         _ => unreachable!("Expected offset-path"),
     }
 }
@@ -893,7 +898,8 @@ pub unsafe extern "C" fn Servo_AnimationValue_Transform(
 pub unsafe extern "C" fn Servo_AnimationValue_OffsetPath(
     p: &computed::motion::OffsetPath,
 ) -> Strong<AnimationValue> {
-    Arc::new(AnimationValue::OffsetPath(p.clone())).into()
+    use style::values::animated::ToAnimatedValue;
+    Arc::new(AnimationValue::OffsetPath(p.clone().to_animated_value())).into()
 }
 
 #[no_mangle]
@@ -1053,14 +1059,6 @@ impl_basic_serde_funcs!(
     Servo_StyleComputedTimingFunction_Deserialize,
     ComputedTimingFunction
 );
-
-#[no_mangle]
-pub extern "C" fn Servo_SVGPathData_Normalize(
-    input: &specified::SVGPathData,
-    output: &mut specified::SVGPathData,
-) {
-    *output = input.normalize();
-}
 
 // Return the ComputedValues by a base ComputedValues and the rules.
 fn resolve_rules_for_element_with_context<'a>(
@@ -2519,6 +2517,7 @@ pub extern "C" fn Servo_StyleRule_SelectorMatchesElement(
             visited_mode,
             quirks_mode,
             NeedsSelectorFlags::No,
+            IgnoreNthChildForInvalidation::No,
         );
         ctx.with_shadow_host(host, |ctx| {
             matches_selector(selector, 0, None, &element, ctx)
@@ -7303,6 +7302,7 @@ pub unsafe extern "C" fn Servo_ParseFontShorthandForMatching(
     stretch: &mut FontStretch,
     weight: &mut FontWeight,
     size: Option<&mut f32>,
+    small_caps: Option<&mut bool>,
 ) -> bool {
     use style::properties::shorthands::font;
     use style::values::generics::font::FontStyle as GenericFontStyle;
@@ -7390,6 +7390,11 @@ pub unsafe extern "C" fn Servo_ParseFontShorthandForMatching(
                 return false;
             },
         };
+    }
+
+    if let Some(small_caps) = small_caps {
+        use style::computed_values::font_variant_caps::T::SmallCaps;
+        *small_caps = font.font_variant_caps == SmallCaps;
     }
 
     true
@@ -7592,17 +7597,6 @@ pub unsafe extern "C" fn Servo_SharedMemoryBuilder_GetLength(
 #[no_mangle]
 pub unsafe extern "C" fn Servo_SharedMemoryBuilder_Drop(builder: *mut SharedMemoryBuilder) {
     let _ = Box::from_raw(builder);
-}
-
-/// Returns a unique pointer to a clone of the shape image.
-///
-/// Probably temporary, as we move more stuff to cbindgen.
-#[no_mangle]
-#[must_use]
-pub unsafe extern "C" fn Servo_CloneBasicShape(
-    v: &computed::basic_shape::BasicShape,
-) -> *mut computed::basic_shape::BasicShape {
-    Box::into_raw(Box::new(v.clone()))
 }
 
 #[no_mangle]

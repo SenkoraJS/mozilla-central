@@ -728,35 +728,24 @@ where
         Component::AttributeInNoNamespaceExists {
             ref local_name,
             ref local_name_lower,
-        } => element.attr_matches(
-            &NamespaceConstraint::Specific(&crate::parser::namespace_empty_string::<E::Impl>()),
-            select_name(element, local_name, local_name_lower),
-            &AttrSelectorOperation::Exists,
-        ),
+        } => element.has_attr_in_no_namespace(select_name(element, local_name, local_name_lower)),
         Component::AttributeInNoNamespace {
             ref local_name,
             ref value,
             operator,
             case_sensitivity,
-            never_matches,
         } => {
-            if never_matches {
-                return false;
-            }
             element.attr_matches(
                 &NamespaceConstraint::Specific(&crate::parser::namespace_empty_string::<E::Impl>()),
                 local_name,
                 &AttrSelectorOperation::WithValue {
                     operator,
                     case_sensitivity: to_unconditional_case_sensitivity(case_sensitivity, element),
-                    expected_value: value,
+                    value,
                 },
             )
         },
         Component::AttributeOther(ref attr_sel) => {
-            if attr_sel.never_matches {
-                return false;
-            }
             let empty_string;
             let namespace = match attr_sel.namespace() {
                 Some(ns) => ns,
@@ -773,14 +762,14 @@ where
                     ParsedAttrSelectorOperation::WithValue {
                         operator,
                         case_sensitivity,
-                        ref expected_value,
+                        ref value,
                     } => AttrSelectorOperation::WithValue {
                         operator,
                         case_sensitivity: to_unconditional_case_sensitivity(
                             case_sensitivity,
                             element,
                         ),
-                        expected_value,
+                        value,
                     },
                 },
             )
@@ -957,6 +946,11 @@ where
 {
     if element.ignores_nth_child_selectors() {
         return false;
+    }
+    if context.ignores_nth_child_selectors_for_invalidation() {
+        let selectors_match =
+            selectors.is_empty() || list_matches_complex_selector(selectors, element, context);
+        return selectors_match && !context.in_negation();
     }
 
     let NthSelectorData { ty, a, b, .. } = *nth_data;
