@@ -6,17 +6,23 @@ import argparse
 import math
 import os
 import re
+import shutil
+import sys
+import tempfile
 from typing import Callable, Iterable, List, Mapping, Optional, Tuple
 
 repos = ["autoland", "mozilla-central", "try", "mozilla-central", "mozilla-beta", "wpt"]
 
 default_fetch_task_filters = ["-web-platform-tests-|-spidermonkey-"]
-default_interop_task_filters = [
-    "web-platform-tests",
-    "linux.*-64",
-    "/opt",
-    "!-nofis|-headless|-asan|-tsan|-ccov",
-]
+default_interop_task_filters = {
+    "wpt": ["-firefox-"],
+    None: [
+        "web-platform-tests",
+        "linux.*-64",
+        "/opt",
+        "!-nofis|-headless|-asan|-tsan|-ccov",
+    ],
+}
 
 
 def get_parser_fetch_logs() -> argparse.Namespace:
@@ -168,21 +174,41 @@ def score_runs(
 
     runs = get_runs(commits)
 
-    if not task_filters:
-        task_filters = default_interop_task_filters
+    temp_dir = None
+    if log_dir is None:
+        temp_dir = tempfile.mkdtemp()
+        log_dir = temp_dir
 
-    run_logs = []
-    for repo, commit in runs:
-        log_paths = get_wptreports(repo, commit, task_filters, log_dir, check_complete)
-        run_logs.append(log_paths)
+    try:
+        run_logs = []
+        for repo, commit in runs:
+            if not task_filters:
+                if repo in default_interop_task_filters:
+                    filters = default_interop_task_filters[repo]
+                else:
+                    filters = default_interop_task_filters[None]
+            else:
+                filters = task_filters
 
-    include_total = category_filters is None
-    if category_filters is None:
-        category_filters = [f"-{year}-"]
+            log_paths = get_wptreports(repo, commit, filters, log_dir, check_complete)
+            if not log_paths:
+                print(f"Failed to get any logs for {repo}:{commit}", file=sys.stderr)
+            else:
+                run_logs.append(log_paths)
 
-    category_filter = get_category_filter(category_filters)
+        if not run_logs:
+            print("No logs to process", file=sys.stderr)
 
-    scores = score.score_wptreports(
-        run_logs, year=year, category_filter=category_filter
-    )
-    print_scores(runs, scores, include_total)
+        include_total = category_filters is None
+        if category_filters is None:
+            category_filters = [f"-{year}-"]
+
+        category_filter = get_category_filter(category_filters)
+
+        scores = score.score_wptreports(
+            run_logs, year=year, category_filter=category_filter
+        )
+        print_scores(runs, scores, include_total)
+    finally:
+        if temp_dir is not None:
+            shutil.rmtree(temp_dir, True)
